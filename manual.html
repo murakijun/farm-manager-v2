@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使い方ガイド — マンゴー農園管理</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="navbar sticky-top">
+  <div class="container-fluid px-3">
+    <a class="navbar-brand" href="index.html">
+      <i class="bi bi-arrow-left me-1"></i>アプリに戻る
+    </a>
+  </div>
+</nav>
+
+<div class="container py-4" style="max-width:600px">
+  <h2 class="mb-1"><i class="bi bi-book me-2"></i>使い方ガイド</h2>
+  <p class="text-muted mb-4">マンゴー農園管理 v2</p>
+
+  <!-- 基本概念 -->
+  <div class="card mb-3">
+    <div class="card-header">基本概念</div>
+    <div class="card-body">
+      <p>データはすべて <strong>端末のブラウザ</strong> に保存されます。
+      クラウド同期は行いません。バックアップはエクスポート機能を使ってください。</p>
+      <ul class="mb-0">
+        <li><strong>ハウス</strong>：マンゴーを育てる温室単位</li>
+        <li><strong>木</strong>：ハウス内の各マンゴーの木（行・列で管理）</li>
+        <li><strong>作業記録</strong>：ハウス単位の作業（剪定・農薬散布など）</li>
+        <li><strong>時間管理</strong>：打刻による労働時間の記録</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ハウス管理 -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-house-fill me-1"></i>ハウス管理</div>
+    <div class="card-body">
+      <ol class="mb-0">
+        <li>ホーム画面右下の <strong>＋</strong> ボタンからハウスを追加</li>
+        <li>ハウス名・行数・列数を入力（行・列数は後から変更不可）</li>
+        <li>追加後、ハウス詳細画面で木グリッドが表示される</li>
+        <li>各セルをタップして木の詳細を入力</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- 木の評価 -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-tree-fill me-1"></i>木の評価</div>
+    <div class="card-body">
+      <p class="mb-2"><strong>木グリッドの色分け（病害評価）</strong></p>
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        <span class="badge" style="background:var(--rating-5)">5 = 健康（緑）</span>
+        <span class="badge" style="background:var(--rating-4)">4 = 良好（黄緑）</span>
+        <span class="badge" style="background:var(--rating-3);color:#333">3 = 普通（黄）</span>
+        <span class="badge" style="background:var(--rating-2)">2 = 要注意（橙）</span>
+        <span class="badge" style="background:var(--rating-1)">1 = 危険（赤）</span>
+      </div>
+      <ul class="mb-0">
+        <li>木の詳細画面でボタン1タップで評価を変更</li>
+        <li>開花日・実の数・メモ・写真も記録可能</li>
+        <li>写真は自動的に900px以下にリサイズ</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 作業記録 -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-clipboard-check me-1"></i>作業記録</div>
+    <div class="card-body">
+      <ol class="mb-0">
+        <li>ハウス詳細の「作業記録」セクション右の <strong>＋</strong> から新規追加</li>
+        <li>作業種類・日付・メモを入力して追加</li>
+        <li>作業記録詳細で木ごとにチェックを付ける</li>
+        <li>進捗バーがリアルタイムで更新される</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- 時間管理 -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-clock-fill me-1"></i>時間管理</div>
+    <div class="card-body">
+      <p><strong>2種類の打刻</strong></p>
+      <ul>
+        <li><strong>全体打刻</strong>：農場到着〜退場の時間（時間管理画面から）</li>
+        <li><strong>ハウス別打刻</strong>：各ハウスの作業時間（ハウス詳細画面から）</li>
+      </ul>
+      <p class="mb-0">ハウス別の累積トータルは <strong>削除してもリセットされません</strong>。
+      月次エクスポート後に詳細を削除してもトータルは保持されます。</p>
+    </div>
+  </div>
+
+  <!-- エクスポート -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-file-earmark-excel me-1"></i>エクスポート</div>
+    <div class="card-body">
+      <table class="table table-sm mb-0">
+        <thead>
+          <tr><th>ボタン</th><th>内容</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>時間管理 → 月エクスポート</td>
+            <td>作業時間_YYYY-MM.xlsx をダウンロード</td>
+          </tr>
+          <tr>
+            <td>集計 → 年間エクスポート</td>
+            <td>年間集計_YYYY.xlsx をダウンロード</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- データについて -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-database me-1"></i>データについて</div>
+    <div class="card-body">
+      <ul class="mb-0">
+        <li>作業記録・ハウス情報：<code>farm_v2</code>（localStorage）</li>
+        <li>時間記録：<code>farm_v2_time</code>（localStorage）</li>
+        <li>写真：<code>farmPhotosV2</code>（IndexedDB）</li>
+        <li>ブラウザのデータをクリアするとすべて消えます</li>
+        <li>定期的にエクスポートでバックアップを取ることを推奨します</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="text-center text-muted small mt-4">マンゴー農園管理 v2</p>
+</div>
+</body>
+</html>
