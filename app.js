@@ -484,6 +484,15 @@ function elapsedStr(startTs) {
 }
 
 // ============================================================
+// BULK INPUT STATE
+// ============================================================
+let _bulkMode = false;
+let _bulkHouseId = null;
+const _bulkSelected = new Set();
+let _bulkDiseaseRating = null;
+let _bulkSoilRating = null;
+
+// ============================================================
 // VIEWS
 // ============================================================
 
@@ -564,12 +573,12 @@ function renderHouseForm(houseId) {
           <div class="row g-2 mb-3">
             <div class="col">
               <label class="form-label">行数（列）</label>
-              <input type="number" class="form-control" id="f-rows" min="1" max="30" required
+              <input type="number" class="form-control" id="f-rows" min="1" max="99" required
                 value="${house ? house.rows : 6}" ${isEdit ? 'disabled' : ''}>
             </div>
             <div class="col">
               <label class="form-label">列数（行）</label>
-              <input type="number" class="form-control" id="f-cols" min="1" max="30" required
+              <input type="number" class="form-control" id="f-cols" min="1" max="99" required
                 value="${house ? house.cols : 4}" ${isEdit ? 'disabled' : ''}>
             </div>
           </div>
@@ -605,7 +614,26 @@ function renderHouseForm(houseId) {
 }
 
 window.deleteHouseConfirm = function(id) {
-  if (!confirm(`このハウスとすべてのデータを削除しますか？\nこの操作は取り消せません。`)) return;
+  showModal(`
+    <div class="modal-header">
+      <h5 class="modal-title text-danger">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>ハウスを削除
+      </h5>
+    </div>
+    <div class="modal-body">
+      <p class="mb-1">このハウスとすべてのデータを削除しますか？</p>
+      <p class="text-danger fw-bold small mb-0">この操作は取り消せません。</p>
+    </div>
+    <div class="modal-footer gap-2">
+      <button class="btn btn-secondary" onclick="hideModal()">キャンセル</button>
+      <button class="btn btn-danger" onclick="doDeleteHouse(${id})">
+        <i class="bi bi-trash3 me-1"></i>削除する
+      </button>
+    </div>`);
+};
+
+window.doDeleteHouse = function(id) {
+  hideModal();
   STORE.deleteHouse(id);
   showToast('ハウスを削除しました', 'warning');
   ROUTER.go('/');
@@ -616,6 +644,16 @@ function renderHouseDetail(houseId) {
   const house = STORE.getHouse(houseId);
   if (!house) { ROUTER.go('/'); return; }
 
+  // Reset bulk mode when switching houses
+  if (_bulkHouseId !== null && _bulkHouseId !== houseId) {
+    _bulkMode = false;
+    _bulkHouseId = null;
+    _bulkSelected.clear();
+    _bulkDiseaseRating = null;
+    _bulkSoilRating = null;
+  }
+  const isBulk = _bulkMode && _bulkHouseId === houseId;
+
   const trees = STORE.getTreesForHouse(houseId);
   const avgD = avgRating(trees, 'diseaseRating');
   const avgS = avgRating(trees, 'soilRating');
@@ -625,13 +663,14 @@ function renderHouseDetail(houseId) {
   // Tree grid
   const colCount = house.cols;
   const gridStyle = `grid-template-columns: repeat(${colCount}, 1fr)`;
-  const gridCells = trees.map(t =>
-    `<div class="tree-cell rating-${t.diseaseRating}"
-      onclick="ROUTER.go('/tree/${t.id}')"
+  const gridCells = trees.map(t => {
+    const isSelected = isBulk && _bulkSelected.has(t.id);
+    return `<div class="tree-cell rating-${t.diseaseRating}${isSelected ? ' selected' : ''}"
+      onclick="${isBulk ? `toggleBulkTree(${t.id})` : `ROUTER.go('/tree/${t.id}')`}"
       title="${t.row}行${t.col}列 病害:${t.diseaseRating} 土壌:${t.soilRating}">
-      ${t.row}-${t.col}
-    </div>`
-  ).join('');
+      ${isSelected ? '<i class="bi bi-check-lg"></i>' : `${t.row}-${t.col}`}
+    </div>`;
+  }).join('');
 
   // Active house session
   const activeHS = TIME.getActiveHouseSession();
@@ -685,7 +724,14 @@ function renderHouseDetail(houseId) {
     <div class="card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-grid-3x3-gap-fill me-1"></i>木グリッド</span>
-        <span class="text-muted small">${trees.length}本</span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-muted small">${trees.length}本</span>
+          <button class="btn btn-sm ${isBulk ? 'btn-warning' : 'btn-outline-primary'}"
+            onclick="toggleBulkMode(${houseId})"
+            style="min-height:32px;padding:2px 10px;font-size:0.8rem">
+            <i class="bi bi-${isBulk ? 'x-lg' : 'ui-checks'} me-1"></i>${isBulk ? '一括終了' : '一括入力'}
+          </button>
+        </div>
       </div>
       <div class="card-body p-2">
         <div class="tree-grid" style="${gridStyle}">${gridCells}</div>
@@ -698,6 +744,65 @@ function renderHouseDetail(houseId) {
         </div>
       </div>
     </div>
+
+    <!-- Bulk input panel -->
+    ${isBulk ? `
+    <div class="card mb-3" style="border-color:var(--mango-mid)">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-ui-checks me-1"></i>一括入力パネル</span>
+        <span class="badge bg-warning text-dark" id="bulk-count">${_bulkSelected.size}本選択</span>
+      </div>
+      <div class="card-body">
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-sm btn-outline-primary flex-grow-1" onclick="selectAllBulkTrees(${houseId})">
+            <i class="bi bi-check2-all me-1"></i>全選択
+          </button>
+          <button class="btn btn-sm btn-outline-secondary flex-grow-1" onclick="clearBulkTrees(${houseId})">
+            <i class="bi bi-x-lg me-1"></i>全解除
+          </button>
+        </div>
+
+        <div class="section-title">病害評価（未選択 = 変更なし）</div>
+        <div class="rating-btn-group mb-3" id="bulk-disease-btns">
+          ${[1,2,3,4,5].map(r =>
+            `<button class="rating-btn r${r}${_bulkDiseaseRating === r ? ' active' : ''}"
+              onclick="toggleBulkRating('disease', ${r})">${r}</button>`
+          ).join('')}
+        </div>
+
+        <div class="section-title">土壌評価（未選択 = 変更なし）</div>
+        <div class="rating-btn-group mb-3" id="bulk-soil-btns">
+          ${[1,2,3,4,5].map(r =>
+            `<button class="rating-btn r${r}${_bulkSoilRating === r ? ' active' : ''}"
+              onclick="toggleBulkRating('soil', ${r})">${r}</button>`
+          ).join('')}
+        </div>
+
+        <div class="section-title mb-1">開花日（空欄 = 変更なし）</div>
+        <div class="d-flex gap-2 mb-3">
+          <input type="date" class="form-control" id="bulk-flowering-date">
+          <button class="btn btn-outline-secondary" onclick="bulkClearFlowering(${houseId})"
+            style="white-space:nowrap;min-width:70px">クリア</button>
+        </div>
+
+        <div class="section-title mb-1">実の数（空欄 = 変更なし）</div>
+        <input type="number" class="form-control mb-3" id="bulk-fruit" min="0"
+          placeholder="空欄 = 変更なし">
+
+        <div class="mb-3">
+          <label class="d-flex align-items-center gap-2 mb-1" style="cursor:pointer">
+            <input type="checkbox" id="bulk-notes-en" class="form-check-input m-0">
+            <span class="section-title mb-0">メモを変更する（チェック時のみ）</span>
+          </label>
+          <textarea class="form-control" id="bulk-notes" rows="2"
+            placeholder="メモ内容"></textarea>
+        </div>
+
+        <button class="btn btn-primary w-100" onclick="applyBulkInput(${houseId})">
+          <i class="bi bi-check2-all me-1"></i>選択した木に適用
+        </button>
+      </div>
+    </div>` : ''}
 
     <!-- Work timer -->
     <div class="card mb-3 ${isThisHouseActive ? 'border-warning timer-running' : ''}">
@@ -801,6 +906,123 @@ window.deleteIrrigation = function(id, houseId) {
   if (!confirm('この灌水記録を削除しますか？')) return;
   STORE.deleteIrrigationLog(id);
   document.getElementById('irr-log-list').innerHTML = renderIrrigationList(houseId);
+};
+
+// ---- Bulk input functions ----
+window.toggleBulkMode = function(houseId) {
+  if (_bulkMode && _bulkHouseId === houseId) {
+    _bulkMode = false;
+    _bulkHouseId = null;
+  } else {
+    _bulkMode = true;
+    _bulkHouseId = houseId;
+  }
+  _bulkSelected.clear();
+  _bulkDiseaseRating = null;
+  _bulkSoilRating = null;
+  renderHouseDetail(houseId);
+};
+
+window.toggleBulkTree = function(treeId) {
+  if (_bulkSelected.has(treeId)) {
+    _bulkSelected.delete(treeId);
+  } else {
+    _bulkSelected.add(treeId);
+  }
+  // Update cell visually without full re-render
+  document.querySelectorAll('.tree-cell').forEach(cell => {
+    const m = (cell.getAttribute('onclick') || '').match(/toggleBulkTree\((\d+)\)/);
+    if (m && +m[1] === treeId) {
+      const tree = STORE.getTree(treeId);
+      const sel = _bulkSelected.has(treeId);
+      cell.classList.toggle('selected', sel);
+      cell.innerHTML = sel ? '<i class="bi bi-check-lg"></i>' : (tree ? `${tree.row}-${tree.col}` : '');
+    }
+  });
+  const badge = document.getElementById('bulk-count');
+  if (badge) badge.textContent = `${_bulkSelected.size}本選択`;
+};
+
+window.selectAllBulkTrees = function(houseId) {
+  STORE.getTreesForHouse(houseId).forEach(t => _bulkSelected.add(t.id));
+  document.querySelectorAll('.tree-cell').forEach(cell => {
+    const m = (cell.getAttribute('onclick') || '').match(/toggleBulkTree\((\d+)\)/);
+    if (m) {
+      const tree = STORE.getTree(+m[1]);
+      cell.classList.add('selected');
+      cell.innerHTML = '<i class="bi bi-check-lg"></i>';
+    }
+  });
+  const badge = document.getElementById('bulk-count');
+  if (badge) badge.textContent = `${_bulkSelected.size}本選択`;
+};
+
+window.clearBulkTrees = function(houseId) {
+  _bulkSelected.clear();
+  document.querySelectorAll('.tree-cell').forEach(cell => {
+    const m = (cell.getAttribute('onclick') || '').match(/toggleBulkTree\((\d+)\)/);
+    if (m) {
+      const tree = STORE.getTree(+m[1]);
+      cell.classList.remove('selected');
+      if (tree) cell.innerHTML = `${tree.row}-${tree.col}`;
+    }
+  });
+  const badge = document.getElementById('bulk-count');
+  if (badge) badge.textContent = '0本選択';
+};
+
+window.toggleBulkRating = function(type, val) {
+  if (type === 'disease') {
+    _bulkDiseaseRating = _bulkDiseaseRating === val ? null : val;
+    document.querySelectorAll('#bulk-disease-btns .rating-btn')
+      .forEach((b, i) => b.classList.toggle('active', i + 1 === _bulkDiseaseRating));
+  } else {
+    _bulkSoilRating = _bulkSoilRating === val ? null : val;
+    document.querySelectorAll('#bulk-soil-btns .rating-btn')
+      .forEach((b, i) => b.classList.toggle('active', i + 1 === _bulkSoilRating));
+  }
+};
+
+window.bulkClearFlowering = function(houseId) {
+  if (_bulkSelected.size === 0) { showToast('木を選択してください', 'warning'); return; }
+  _bulkSelected.forEach(tId => STORE.updateTree(tId, { floweringDate: null }));
+  showToast(`${_bulkSelected.size}本の開花日をクリアしました`);
+  renderHouseDetail(houseId);
+};
+
+window.applyBulkInput = function(houseId) {
+  if (_bulkSelected.size === 0) { showToast('木を選択してください', 'warning'); return; }
+
+  const diseaseVal = _bulkDiseaseRating;
+  const soilVal = _bulkSoilRating;
+  const floweringVal = document.getElementById('bulk-flowering-date')?.value || null;
+  const fruitStr = document.getElementById('bulk-fruit')?.value;
+  const fruitVal = (fruitStr !== '' && fruitStr != null) ? parseInt(fruitStr) : null;
+  const notesEn = document.getElementById('bulk-notes-en')?.checked;
+  const notesVal = notesEn ? (document.getElementById('bulk-notes')?.value ?? '') : null;
+
+  if (diseaseVal === null && soilVal === null && !floweringVal &&
+      (fruitVal === null || isNaN(fruitVal)) && notesVal === null) {
+    showToast('変更する項目を設定してください', 'warning');
+    return;
+  }
+
+  const fields = {};
+  if (diseaseVal !== null) fields.diseaseRating = diseaseVal;
+  if (soilVal !== null) fields.soilRating = soilVal;
+  if (floweringVal) fields.floweringDate = floweringVal;
+  if (fruitVal !== null && !isNaN(fruitVal) && fruitVal >= 0) fields.fruitCount = fruitVal;
+  if (notesVal !== null) fields.notes = notesVal;
+
+  const count = _bulkSelected.size;
+  _bulkSelected.forEach(tId => STORE.updateTree(tId, fields));
+
+  // Reset rating selections for next batch
+  _bulkDiseaseRating = null;
+  _bulkSoilRating = null;
+
+  showToast(`${count}本に適用しました`);
+  renderHouseDetail(houseId);
 };
 
 window.houseTimerStart = function(houseId) {
