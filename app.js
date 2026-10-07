@@ -1289,14 +1289,11 @@ function renderTreeDetail(treeId) {
             onclick="adjustFruit(${treeId}, -1)">
             <i class="bi bi-dash-lg"></i>
           </button>
-          <span class="fs-3 fw-bold" id="fruit-count">${tree.fruitCount}</span>
+          <span class="fs-3 fw-bold" id="fruit-count" style="cursor:pointer;min-width:2ch;text-align:center"
+            onclick="setFruitDirect(${treeId})" title="タップして直接入力">${tree.fruitCount}</span>
           <button class="btn btn-primary" style="width:44px;height:44px;padding:0"
             onclick="adjustFruit(${treeId}, 1)">
             <i class="bi bi-plus-lg"></i>
-          </button>
-          <button class="btn btn-outline-secondary ms-2"
-            onclick="setFruitDirect(${treeId})">
-            入力
           </button>
         </div>
       </div>
