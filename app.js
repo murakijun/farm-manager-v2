@@ -1359,34 +1359,39 @@ window.adjustFruit = function(treeId, delta) {
 };
 
 window.setFruitDirect = function(treeId) {
-  const tree = STORE.getTree(treeId);
-  showModal(`
-    <div class="modal-header">
-      <h5 class="modal-title">実の数を入力</h5>
-    </div>
-    <div class="modal-body">
-      <input type="number" class="form-control form-control-lg text-center" id="fruit-input"
-        value="${tree.fruitCount || 0}" min="0" inputmode="numeric">
-    </div>
-    <div class="modal-footer gap-2">
-      <button class="btn btn-secondary" onclick="hideModal()">キャンセル</button>
-      <button class="btn btn-primary" onclick="confirmFruitDirect(${treeId})">決定</button>
-    </div>`);
-  setTimeout(() => {
-    const inp = document.getElementById('fruit-input');
-    if (inp) { inp.focus(); inp.select(); }
-  }, 300);
-};
+  const span = document.getElementById('fruit-count');
+  if (!span || span.tagName === 'INPUT') return;
+  const current = parseInt(span.textContent) || 0;
 
-window.confirmFruitDirect = function(treeId) {
-  const inp = document.getElementById('fruit-input');
-  if (!inp) return;
-  const n = parseInt(inp.value);
-  if (isNaN(n) || n < 0) return;
-  hideModal();
-  STORE.updateTree(treeId, { fruitCount: n });
-  const el = document.getElementById('fruit-count');
-  if (el) el.textContent = n;
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.inputMode = 'numeric';
+  input.pattern = '[0-9]*';
+  input.min = '0';
+  input.value = current;
+  input.className = 'fs-3 fw-bold text-center form-control';
+  input.style.cssText = 'width:80px;display:inline-block;padding:2px 4px';
+  input.id = 'fruit-count';
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+
+  function save() {
+    const n = parseInt(input.value);
+    const val = (!isNaN(n) && n >= 0) ? n : current;
+    STORE.updateTree(treeId, { fruitCount: val });
+    const newSpan = document.createElement('span');
+    newSpan.className = 'fs-3 fw-bold';
+    newSpan.id = 'fruit-count';
+    newSpan.style.cssText = 'cursor:pointer;min-width:2ch;text-align:center';
+    newSpan.title = 'タップして直接入力';
+    newSpan.onclick = () => setFruitDirect(treeId);
+    newSpan.textContent = val;
+    input.replaceWith(newSpan);
+  }
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
 };
 
 window.saveNotes = function(treeId) {
