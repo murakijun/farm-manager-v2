@@ -1360,10 +1360,30 @@ window.adjustFruit = function(treeId, delta) {
 
 window.setFruitDirect = function(treeId) {
   const tree = STORE.getTree(treeId);
-  const val = window.prompt('実の数を入力してください:', tree.fruitCount || 0);
-  if (val === null) return;
-  const n = parseInt(val);
+  showModal(`
+    <div class="modal-header">
+      <h5 class="modal-title">実の数を入力</h5>
+    </div>
+    <div class="modal-body">
+      <input type="number" class="form-control form-control-lg text-center" id="fruit-input"
+        value="${tree.fruitCount || 0}" min="0" inputmode="numeric">
+    </div>
+    <div class="modal-footer gap-2">
+      <button class="btn btn-secondary" onclick="hideModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="confirmFruitDirect(${treeId})">決定</button>
+    </div>`);
+  setTimeout(() => {
+    const inp = document.getElementById('fruit-input');
+    if (inp) { inp.focus(); inp.select(); }
+  }, 300);
+};
+
+window.confirmFruitDirect = function(treeId) {
+  const inp = document.getElementById('fruit-input');
+  if (!inp) return;
+  const n = parseInt(inp.value);
   if (isNaN(n) || n < 0) return;
+  hideModal();
   STORE.updateTree(treeId, { fruitCount: n });
   const el = document.getElementById('fruit-count');
   if (el) el.textContent = n;
